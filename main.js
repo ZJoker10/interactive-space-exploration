@@ -93,10 +93,10 @@ const SceneState = {
         panelDeployment: 0, // 0-180 degrees
         armJoint1Angle: 0,
         armJoint2Angle: 0,
-        planetColor: 0x4488ff,
-        moonColor: 0xcccccc,
-        satelliteColor: 0xaaaaaa,
-        solarPanelColor: 0x1a5f7a,
+        planetColor: '#4488ff',
+        moonColor: '#cccccc',
+        satelliteColor: '#aaaaaa',
+        solarPanelColor: '#1a5f7a',
         planetVisible: true,
         moonVisible: true,
         satelliteVisible: true,
@@ -164,9 +164,12 @@ function setupScene() {
     SceneState.renderer.setSize(width, height);
     SceneState.renderer.setPixelRatio(window.devicePixelRatio);
     SceneState.renderer.shadowMap.enabled = true;
-    SceneState.renderer.shadowMap.type = THREE.PCFShadowShadowMap;
+    SceneState.renderer.shadowMap.type = THREE.PCFShadowMap;
     SceneState.renderer.shadowMap.resolution = Config.shadowMapSize;
-    SceneState.renderer.outputEncoding = THREE.sRGBEncoding;
+    
+    if (THREE.sRGBEncoding !== undefined) {
+        SceneState.renderer.outputEncoding = THREE.sRGBEncoding;
+    }
     
     container.appendChild(SceneState.renderer.domElement);
     
@@ -271,9 +274,7 @@ function createMaterial(config = {}) {
     };
     
     const finalConfig = { ...defaultConfig, ...config };
-    
-    const material = new THREE.MeshStandardMaterial(finalConfig);
-    return material;
+    return new THREE.MeshStandardMaterial(finalConfig);
 }
 
 function createGradientTexture(width, height, color1, color2) {
@@ -284,14 +285,19 @@ function createGradientTexture(width, height, color1, color2) {
     const ctx = canvas.getContext('2d');
     const gradient = ctx.createLinearGradient(0, 0, width, height);
     
-    gradient.addColorStop(0, '#' + color1.toString(16).padStart(6, '0'));
-    gradient.addColorStop(1, '#' + color2.toString(16).padStart(6, '0'));
+    const c1 = typeof color1 === 'string' ? color1 : '#' + color1.toString(16).padStart(6, '0');
+    const c2 = typeof color2 === 'string' ? color2 : '#' + color2.toString(16).padStart(6, '0');
+    
+    gradient.addColorStop(0, c1);
+    gradient.addColorStop(1, c2);
     
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
     
     const texture = new THREE.CanvasTexture(canvas);
-    texture.encoding = THREE.sRGBEncoding;
+    if (THREE.sRGBEncoding !== undefined) {
+        texture.encoding = THREE.sRGBEncoding;
+    }
     return texture;
 }
 
@@ -301,25 +307,22 @@ function createNormalMap(width, height) {
     canvas.height = height;
     
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#7f7fff'; // Normal map neutral blue
+    ctx.fillStyle = '#7f7fff'; 
     ctx.fillRect(0, 0, width, height);
     
-    // Add subtle noise for detail
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
     
     for (let i = 0; i < data.length; i += 4) {
         const noise = Math.random() * 20;
-        data[i] = Math.max(0, Math.min(255, 127 + noise)); // R
-        data[i + 1] = Math.max(0, Math.min(255, 127 + noise)); // G
-        data[i + 2] = 255; // B (always 255)
-        data[i + 3] = 255; // A
+        data[i] = Math.max(0, Math.min(255, 127 + noise)); 
+        data[i + 1] = Math.max(0, Math.min(255, 127 + noise)); 
+        data[i + 2] = 255; 
+        data[i + 3] = 255; 
     }
     
     ctx.putImageData(imageData, 0, 0);
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    return texture;
+    return new THREE.CanvasTexture(canvas);
 }
 
 function createSpecularMap(width, height, intensity = 0.5) {
@@ -332,13 +335,12 @@ function createSpecularMap(width, height, intensity = 0.5) {
     ctx.fillStyle = `rgb(${specValue}, ${specValue}, ${specValue})`;
     ctx.fillRect(0, 0, width, height);
     
-    const texture = new THREE.CanvasTexture(canvas);
-    return texture;
+    return new THREE.CanvasTexture(canvas);
 }
 
 function createPlanetMaterial(baseColor) {
     const material = createMaterial({
-        color: baseColor,
+        color: new THREE.Color(baseColor),
         metalness: 0.1,
         roughness: 0.8,
         emissive: 0x000000,
@@ -346,37 +348,37 @@ function createPlanetMaterial(baseColor) {
     
     material.map = createGradientTexture(256, 256, baseColor, baseColor);
     material.normalMap = createNormalMap(256, 256);
-    material.specularMap = createSpecularMap(256, 256, 0.3);
+    material.roughnessMap = createSpecularMap(256, 256, 0.7); 
     
     return material;
 }
 
 function createSatelliteMaterial(baseColor) {
     const material = createMaterial({
-        color: baseColor,
+        color: new THREE.Color(baseColor),
         metalness: 0.7,
         roughness: 0.3,
         emissive: 0x0a1a2a,
     });
     
-    material.map = createGradientTexture(256, 256, baseColor, 0x555555);
+    material.map = createGradientTexture(256, 256, baseColor, '#555555');
     material.normalMap = createNormalMap(256, 256);
-    material.specularMap = createSpecularMap(256, 256, 0.6);
+    material.roughnessMap = createSpecularMap(256, 256, 0.4);
     
     return material;
 }
 
 function createSolarPanelMaterial(baseColor) {
     const material = createMaterial({
-        color: baseColor,
+        color: new THREE.Color(baseColor),
         metalness: 0.9,
         roughness: 0.1,
         emissive: 0x0a1a2a,
     });
     
-    material.map = createGradientTexture(256, 256, baseColor, 0x0a3a5a);
+    material.map = createGradientTexture(256, 256, baseColor, '#0a3a5a');
     material.normalMap = createNormalMap(256, 256);
-    material.specularMap = createSpecularMap(256, 256, 0.8);
+    material.roughnessMap = createSpecularMap(256, 256, 0.2);
     
     return material;
 }
@@ -388,23 +390,18 @@ console.log('✓ Material system initialized');
 // ============================================================================
 
 function buildOrbitalSystem() {
-    // Create Sun (visual representation + light)
     const sunGeometry = new THREE.SphereGeometry(8, 32, 32);
     const sunMaterial = new THREE.MeshBasicMaterial({
         color: 0xfdb813,
-        emissive: 0xfdb813,
-        emissiveIntensity: 0.8,
     });
     
     SceneState.sun = new THREE.Mesh(sunGeometry, sunMaterial);
     SceneState.sun.position.set(0, 0, 0);
     SceneState.scene.add(SceneState.sun);
     
-    // Create Planet Orbit Group (for orbital motion)
     SceneState.planetGroup = new THREE.Group();
     SceneState.scene.add(SceneState.planetGroup);
     
-    // Create Planet
     const planetGeometry = new THREE.SphereGeometry(6, 32, 32);
     const planetMaterial = createPlanetMaterial(SceneState.ui.planetColor);
     
@@ -414,12 +411,10 @@ function buildOrbitalSystem() {
     SceneState.planet.receiveShadow = true;
     SceneState.planetGroup.add(SceneState.planet);
     
-    // Create Moon Orbit Group (child of planet, for hierarchical motion)
     SceneState.moonGroup = new THREE.Group();
     SceneState.moonGroup.position.set(Config.planetOrbitRadius, 0, 0);
     SceneState.planetGroup.add(SceneState.moonGroup);
     
-    // Create Moon
     const moonGeometry = new THREE.SphereGeometry(2, 16, 16);
     const moonMaterial = createPlanetMaterial(SceneState.ui.moonColor);
     
@@ -437,12 +432,10 @@ function buildOrbitalSystem() {
 // ============================================================================
 
 function buildSatellite() {
-    // Root satellite group
     SceneState.satelliteGroup = new THREE.Group();
     SceneState.satelliteGroup.position.set(0, 50, 0);
     SceneState.scene.add(SceneState.satelliteGroup);
     
-    // ============ SATELLITE BODY ============
     const bodyGeometry = new THREE.BoxGeometry(4, 6, 3);
     const bodyMaterial = createSatelliteMaterial(SceneState.ui.satelliteColor);
     
@@ -451,7 +444,6 @@ function buildSatellite() {
     SceneState.satelliteBody.receiveShadow = true;
     SceneState.satelliteGroup.add(SceneState.satelliteBody);
     
-    // ============ ANTENNA ============
     const antennaGeometry = new THREE.CylinderGeometry(0.3, 0.3, 5, 16);
     const antennaMaterial = new THREE.MeshStandardMaterial({
         color: 0xcccccc,
@@ -465,14 +457,12 @@ function buildSatellite() {
     antenna.receiveShadow = true;
     SceneState.satelliteBody.add(antenna);
     
-    // ============ ARM JOINT 1 (Rotates around X-axis) ============
     SceneState.armJoint1 = new THREE.Group();
     SceneState.armJoint1.position.set(2.5, -2, 0);
     SceneState.satelliteBody.add(SceneState.armJoint1);
     
-    // Arm Segment 1
     const armSeg1Geometry = new THREE.CylinderGeometry(0.2, 0.2, 5, 8);
-    const armMaterial = createSatelliteMaterial(0x888888);
+    const armMaterial = createSatelliteMaterial('#888888');
     
     const armSegment1 = new THREE.Mesh(armSeg1Geometry, armMaterial);
     armSegment1.position.set(0, -2.5, 0);
@@ -480,12 +470,10 @@ function buildSatellite() {
     armSegment1.receiveShadow = true;
     SceneState.armJoint1.add(armSegment1);
     
-    // ============ ARM JOINT 2 (Rotates around Z-axis, child of Joint 1) ============
     SceneState.armJoint2 = new THREE.Group();
     SceneState.armJoint2.position.set(0, -5, 0);
     SceneState.armJoint1.add(SceneState.armJoint2);
     
-    // Arm Segment 2
     const armSeg2Geometry = new THREE.CylinderGeometry(0.15, 0.15, 4, 8);
     
     const armSegment2 = new THREE.Mesh(armSeg2Geometry, armMaterial);
@@ -494,24 +482,21 @@ function buildSatellite() {
     armSegment2.receiveShadow = true;
     SceneState.armJoint2.add(armSegment2);
     
-    // ============ SOLAR ARRAY (child of Joint 2) ============
     SceneState.solarArray = new THREE.Group();
     SceneState.solarArray.position.set(0, -4, 0);
     SceneState.armJoint2.add(SceneState.solarArray);
     
-    // Solar Array Frame
     const frameGeometry = new THREE.BoxGeometry(0.2, 0.3, 6);
-    const frameMaterial = createSatelliteMaterial(0x555555);
+    const frameMaterial = createSatelliteMaterial('#555555');
     
     const frame = new THREE.Mesh(frameGeometry, frameMaterial);
     frame.castShadow = true;
     frame.receiveShadow = true;
     SceneState.solarArray.add(frame);
     
-    // ============ SOLAR PANELS (3 panels) ============
     const panelGeometry = new THREE.PlaneGeometry(2, 5);
     
-    // Panel 1 (left)
+    // Panel 1
     const panelMat1 = createSolarPanelMaterial(SceneState.ui.solarPanelColor);
     const panel1 = new THREE.Mesh(panelGeometry, panelMat1);
     panel1.position.set(-2.5, 0, 0);
@@ -520,7 +505,7 @@ function buildSatellite() {
     SceneState.solarArray.add(panel1);
     SceneState.solarPanels.push({ mesh: panel1, initialRotation: new THREE.Euler() });
     
-    // Panel 2 (center)
+    // Panel 2
     const panelMat2 = createSolarPanelMaterial(SceneState.ui.solarPanelColor);
     const panel2 = new THREE.Mesh(panelGeometry, panelMat2);
     panel2.position.set(0, 0, 0);
@@ -529,7 +514,7 @@ function buildSatellite() {
     SceneState.solarArray.add(panel2);
     SceneState.solarPanels.push({ mesh: panel2, initialRotation: new THREE.Euler() });
     
-    // Panel 3 (right)
+    // Panel 3
     const panelMat3 = createSolarPanelMaterial(SceneState.ui.solarPanelColor);
     const panel3 = new THREE.Mesh(panelGeometry, panelMat3);
     panel3.position.set(2.5, 0, 0);
@@ -542,7 +527,7 @@ function buildSatellite() {
 }
 
 // ============================================================================
-// 9. ORBIT CONTROLS
+// 9. ORBIT CONTROLS (DYNAMIC ZOOM TARGETING FIXED)
 // ============================================================================
 
 function setupControls() {
@@ -550,7 +535,7 @@ function setupControls() {
     let previousMousePosition = { x: 0, y: 0 };
     
     document.addEventListener('mousedown', (e) => {
-        if (e.button === 0) { // Left click
+        if (e.button === 0) { 
             isDragging = true;
         }
     });
@@ -563,7 +548,6 @@ function setupControls() {
             const camera = SceneState.cameras[SceneState.activeCamera];
             const rotationSpeed = 0.005;
             
-            // Rotate around scene origin
             const distance = camera.position.length();
             const theta = Math.atan2(camera.position.x, camera.position.z) + deltaX * rotationSpeed;
             const phi = Math.acos(camera.position.y / distance) + deltaY * rotationSpeed;
@@ -581,18 +565,30 @@ function setupControls() {
         isDragging = false;
     });
     
-    // Zoom with scroll wheel
+    // Responsive dynamic zooming handler
     document.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        
         const camera = SceneState.cameras[SceneState.activeCamera];
-        const direction = camera.position.clone().normalize();
-        const distance = camera.position.length();
-        const zoomSpeed = 5;
+        if (!camera) return;
         
-        const newDistance = Math.max(20, Math.min(500, distance + e.deltaY * 0.5));
-        camera.position.copy(direction.multiplyScalar(newDistance));
-    }, { passive: false });
+        // Find out what the active camera is focusing on
+        let targetPosition = new THREE.Vector3(0, 0, 0); // Default Sun view
+        
+        if (SceneState.activeCamera === 'satellite' && SceneState.satelliteBody) {
+            SceneState.satelliteBody.getWorldPosition(targetPosition);
+        } else if (SceneState.activeCamera === 'orbital' && SceneState.planet) {
+            SceneState.planet.getWorldPosition(targetPosition);
+        }
+        
+        // Zoom relative to that targeted vector space rather than scene zero root
+        const vectorToTarget = camera.position.clone().sub(targetPosition);
+        const distance = vectorToTarget.length();
+        
+        const zoomStep = e.deltaY * 0.1; 
+        const newDistance = Math.max(5, Math.min(600, distance + zoomStep));
+        
+        vectorToTarget.normalize().multiplyScalar(newDistance);
+        camera.position.copy(targetPosition).add(vectorToTarget);
+    }, { passive: true });
     
     console.log('✓ Orbit controls initialized');
 }
@@ -602,13 +598,12 @@ function setupControls() {
 // ============================================================================
 
 function deployPanelsSmooth() {
-    // Stop any existing panel tween
     SceneState.activeTweens.forEach(tween => tween.stop());
     SceneState.activeTweens = [];
     
     const panelTween = new TWEEN.Tween(SceneState.ui)
-        .to({ panelDeployment: 180 }, 3000)  // 3 seconds
-        .easing(TWEEN.Easing.Elastic.Out)    // Cinematic easing
+        .to({ panelDeployment: 180 }, 3000)  
+        .easing(TWEEN.Easing.Elastic.Out)    
         .onUpdate(() => {
             updateSolarPanelDeployment(SceneState.ui.panelDeployment);
         })
@@ -618,12 +613,11 @@ function deployPanelsSmooth() {
 }
 
 function retractPanelsSmooth() {
-    // Stop any existing panel tween
     SceneState.activeTweens.forEach(tween => tween.stop());
     SceneState.activeTweens = [];
     
     const panelTween = new TWEEN.Tween(SceneState.ui)
-        .to({ panelDeployment: 0 }, 2500)    // 2.5 seconds
+        .to({ panelDeployment: 0 }, 2500)    
         .easing(TWEEN.Easing.Quadratic.Out)
         .onUpdate(() => {
             updateSolarPanelDeployment(SceneState.ui.panelDeployment);
@@ -638,7 +632,7 @@ function rotateArmJoint1Smooth(targetAngle = Math.PI / 4) {
         .to({ armJoint1Angle: targetAngle }, 2000)
         .easing(TWEEN.Easing.Cubic.InOut)
         .onUpdate(() => {
-            SceneState.armJoint1.rotation.x = SceneState.ui.armJoint1Angle;
+            if(SceneState.armJoint1) SceneState.armJoint1.rotation.x = SceneState.ui.armJoint1Angle;
         })
         .start();
     
@@ -650,7 +644,7 @@ function rotateArmJoint2Smooth(targetAngle = Math.PI / 6) {
         .to({ armJoint2Angle: targetAngle }, 2000)
         .easing(TWEEN.Easing.Cubic.InOut)
         .onUpdate(() => {
-            SceneState.armJoint2.rotation.z = SceneState.ui.armJoint2Angle;
+            if(SceneState.armJoint2) SceneState.armJoint2.rotation.z = SceneState.ui.armJoint2Angle;
         })
         .start();
     
@@ -685,7 +679,7 @@ function setupGUI() {
     });
     
     lightsFolder.addColor(SceneState.ui, 'sunColor').name('Sun Color').onChange((value) => {
-        SceneState.sunLight.color.setHex(value);
+        SceneState.sunLight.color.set(value);
     });
     
     lightsFolder.open();
@@ -694,9 +688,9 @@ function setupGUI() {
     const cameraFolder = gui.addFolder('Camera');
     
     const cameraOptions = {
-        'Orbital View': 'orbital',
+        'Orbital (Planet Tracking)': 'orbital',
         'Satellite View': 'satellite',
-        'Free Orbit': 'freeOrbit',
+        'Free Space Orbit': 'freeOrbit',
     };
     
     cameraFolder.add(SceneState, 'activeCamera', cameraOptions).name('View').onChange((value) => {
@@ -708,25 +702,22 @@ function setupGUI() {
     // ============ SATELLITE CONTROL FOLDER ============
     const satelliteFolder = gui.addFolder('Satellite Control');
     
-    // Smooth deployment buttons
     satelliteFolder.add({ deployPanels: deployPanelsSmooth }, 'deployPanels').name('Deploy Panels (Smooth)');
     satelliteFolder.add({ retractPanels: retractPanelsSmooth }, 'retractPanels').name('Retract Panels (Smooth)');
     
-    // Smooth arm rotation buttons
-    satelliteFolder.add({ rotateArm1: rotateArmJoint1Smooth }, 'rotateArm1').name('Rotate Arm Joint 1');
-    satelliteFolder.add({ rotateArm2: rotateArmJoint2Smooth }, 'rotateArm2').name('Rotate Arm Joint 2');
+    satelliteFolder.add({ rotateArm1: () => rotateArmJoint1Smooth(Math.PI / 4) }, 'rotateArm1').name('Rotate Arm Joint 1');
+    satelliteFolder.add({ rotateArm2: () => rotateArmJoint2Smooth(Math.PI / 6) }, 'rotateArm2').name('Rotate Arm Joint 2');
     
-    // Manual sliders
-    satelliteFolder.add(SceneState.ui, 'panelDeployment', 0, 180, 1).name('Manual Panel Deploy').onChange((value) => {
+    satelliteFolder.add(SceneState.ui, 'panelDeployment', 0, 180, 1).name('Manual Panel Deploy').listen().onChange((value) => {
         updateSolarPanelDeployment(value);
     });
     
-    satelliteFolder.add(SceneState.ui, 'armJoint1Angle', -Math.PI, Math.PI, 0.05).name('Arm Joint 1 Manual').onChange((value) => {
-        SceneState.armJoint1.rotation.x = value;
+    satelliteFolder.add(SceneState.ui, 'armJoint1Angle', -Math.PI, Math.PI, 0.05).name('Arm Joint 1 Manual').listen().onChange((value) => {
+        if(SceneState.armJoint1) SceneState.armJoint1.rotation.x = value;
     });
     
-    satelliteFolder.add(SceneState.ui, 'armJoint2Angle', -Math.PI, Math.PI, 0.05).name('Arm Joint 2 Manual').onChange((value) => {
-        SceneState.armJoint2.rotation.z = value;
+    satelliteFolder.add(SceneState.ui, 'armJoint2Angle', -Math.PI, Math.PI, 0.05).name('Arm Joint 2 Manual').listen().onChange((value) => {
+        if(SceneState.armJoint2) SceneState.armJoint2.rotation.z = value;
     });
     
     satelliteFolder.open();
@@ -735,20 +726,20 @@ function setupGUI() {
     const colorsFolder = gui.addFolder('Colors');
     
     colorsFolder.addColor(SceneState.ui, 'planetColor').name('Planet Color').onChange((value) => {
-        SceneState.planet.material.color.setHex(value);
+        SceneState.planet.material.color.set(value);
     });
     
     colorsFolder.addColor(SceneState.ui, 'moonColor').name('Moon Color').onChange((value) => {
-        SceneState.moon.material.color.setHex(value);
+        SceneState.moon.material.color.set(value);
     });
     
     colorsFolder.addColor(SceneState.ui, 'satelliteColor').name('Satellite Color').onChange((value) => {
-        SceneState.satelliteBody.material.color.setHex(value);
+        SceneState.satelliteBody.material.color.set(value);
     });
     
     colorsFolder.addColor(SceneState.ui, 'solarPanelColor').name('Solar Panel Color').onChange((value) => {
         SceneState.solarPanels.forEach(panel => {
-            panel.mesh.material.color.setHex(value);
+            panel.mesh.material.color.set(value);
         });
     });
     
@@ -779,33 +770,24 @@ function setupGUI() {
 // ============================================================================
 
 function updateOrbitalMechanics(deltaTime) {
-    // Planet orbit around sun
-    SceneState.planetGroup.rotation.y += Config.planetOrbitSpeed * deltaTime;
-    
-    // Planet self-rotation
-    SceneState.planet.rotation.y += Config.planetRotationSpeed * deltaTime;
-    
-    // Moon orbit around planet
-    SceneState.moonGroup.rotation.y += Config.moonOrbitSpeed * deltaTime;
-    
-    // Moon self-rotation
-    SceneState.moon.rotation.y += Config.moonRotationSpeed * deltaTime;
+    if (SceneState.planetGroup) SceneState.planetGroup.rotation.y += Config.planetOrbitSpeed * deltaTime;
+    if (SceneState.planet) SceneState.planet.rotation.y += Config.planetRotationSpeed * deltaTime;
+    if (SceneState.moonGroup) SceneState.moonGroup.rotation.y += Config.moonOrbitSpeed * deltaTime;
+    if (SceneState.moon) SceneState.moon.rotation.y += Config.moonRotationSpeed * deltaTime;
 }
 
 function updateSolarPanelDeployment(angle) {
-    // Convert angle (0-180 degrees) to radians and map deployment
     const radians = (angle * Math.PI) / 180;
-    const deploymentFactor = radians / Math.PI; // 0 to 1
+    const deploymentFactor = radians / Math.PI;
     
     SceneState.solarPanels.forEach((panel, index) => {
-        // Rotate around Y-axis to deploy/retract
-        const offset = (index - 1) * 0.2; // Slight stagger
-        panel.mesh.rotation.y = deploymentFactor * (Math.PI * 0.5) + offset;
+        const offset = (index - 1) * 0.2;
+        if(panel.mesh) panel.mesh.rotation.y = deploymentFactor * (Math.PI * 0.5) + offset;
     });
 }
 
 function updateSatelliteOrbitalPosition(deltaTime) {
-    // Make satellite orbit around planet
+    if (!SceneState.satelliteGroup) return;
     const angle = SceneState.elapsedTime * Config.satelliteOrbitSpeed;
     SceneState.satelliteGroup.position.x = Math.cos(angle) * Config.satelliteDistance;
     SceneState.satelliteGroup.position.z = Math.sin(angle) * Config.satelliteDistance;
@@ -813,38 +795,41 @@ function updateSatelliteOrbitalPosition(deltaTime) {
 
 function updateCameraPosition() {
     const camera = SceneState.cameras[SceneState.activeCamera];
+    if (!camera) return;
     
-    // Update satellite-mounted camera if active
     if (SceneState.activeCamera === 'satellite' && SceneState.satelliteBody) {
         const worldPos = new THREE.Vector3();
         SceneState.satelliteBody.getWorldPosition(worldPos);
-        camera.position.lerp(worldPos.clone().add(new THREE.Vector3(0, 2, 8)), 0.05);
+        
+        // Grab length to preserve the scroll-modified distance
+        const currentDist = camera.position.clone().sub(worldPos).length();
+        const direction = camera.position.clone().sub(worldPos).normalize();
+        
+        camera.position.copy(worldPos).add(direction.multiplyScalar(currentDist || 8.24));
         camera.lookAt(worldPos);
+    } else if (SceneState.activeCamera === 'orbital' && SceneState.planet) {
+        const planetPos = new THREE.Vector3();
+        SceneState.planet.getWorldPosition(planetPos);
+        camera.lookAt(planetPos);
     }
 }
 
 function animate() {
     requestAnimationFrame(animate);
     
-    // Update delta time
-    SceneState.deltaTime = Math.min(SceneState.clock.getDelta(), 1 / 30); // Cap at 30 FPS minimum
+    SceneState.deltaTime = Math.min(SceneState.clock.getDelta(), 1 / 30);
     SceneState.elapsedTime += SceneState.deltaTime;
     
-    // Update orbital mechanics
     updateOrbitalMechanics(SceneState.deltaTime);
-    
-    // Update satellite orbital position
     updateSatelliteOrbitalPosition(SceneState.deltaTime);
-    
-    // Update camera
     updateCameraPosition();
     
-    // Update Tween.js animations (CRITICAL for smooth transitions)
     TWEEN.update();
     
-    // Render scene
     const camera = SceneState.cameras[SceneState.activeCamera];
-    SceneState.renderer.render(SceneState.scene, camera);
+    if (SceneState.renderer && SceneState.scene && camera) {
+        SceneState.renderer.render(SceneState.scene, camera);
+    }
 }
 
 // ============================================================================
@@ -856,7 +841,6 @@ function onWindowResize() {
     const height = window.innerHeight;
     const aspect = width / height;
     
-    // Update all cameras
     Object.values(SceneState.cameras).forEach(camera => {
         if (camera instanceof THREE.PerspectiveCamera) {
             camera.aspect = aspect;
@@ -864,11 +848,8 @@ function onWindowResize() {
         }
     });
     
-    // Update renderer
-    SceneState.renderer.setSize(width, height);
+    if (SceneState.renderer) SceneState.renderer.setSize(width, height);
 }
-
-window.addEventListener('resize', onWindowResize);
 
 // ============================================================================
 // 14. INITIALIZATION ENTRY POINT
