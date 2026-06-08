@@ -1,6 +1,6 @@
 /* ============================================================================
    INTERACTIVE SPACE EXPLORATION & SATELLITE DEPLOYMENT LAB
-   Main Application Engine - Three.js WebGL Renderer
+   Main Application Engine - Three.js WebGL Renderer (ENHANCED WITH TWEEN.JS)
    ============================================================================
    
    ARCHITECTURE:
@@ -8,8 +8,8 @@
    2. Lighting Rig (Sun, Ambient, Directional with Shadows)
    3. Material & Texture System (Diffuse, Normal, Specular Maps)
    4. Hierarchical Geometry Builder (Sun->Planet->Moon, Satellite->Joints->Arrays)
-   5. Animation Engine (Delta-time aware)
-   6. User Interaction & GUI Binding (lil-gui)
+   5. Animation Engine (Delta-time aware + Tween.js)
+   6. User Interaction & GUI Binding (lil-gui + Tween buttons)
    7. Orbital Mechanics & Kinematics
    ============================================================================ */
 
@@ -80,6 +80,9 @@ const SceneState = {
     // Controls
     controls: null,
     
+    // Active Tweens
+    activeTweens: [],
+    
     // UI State
     ui: {
         sunLightEnabled: true,
@@ -105,7 +108,7 @@ const SceneState = {
 // ============================================================================
 
 function init() {
-    console.log('Initializing Space Exploration Lab...');
+    console.log('🚀 Initializing Space Exploration Lab...');
     
     // Setup scene and renderer
     setupScene();
@@ -132,7 +135,7 @@ function init() {
     // Start animation loop
     animate();
     
-    console.log('Initialization complete!');
+    console.log('✅ Initialization complete!');
 }
 
 // ============================================================================
@@ -341,7 +344,6 @@ function createPlanetMaterial(baseColor) {
         emissive: 0x000000,
     });
     
-    // Optional: Add texture maps if canvas textures
     material.map = createGradientTexture(256, 256, baseColor, baseColor);
     material.normalMap = createNormalMap(256, 256);
     material.specularMap = createSpecularMap(256, 256, 0.3);
@@ -544,9 +546,6 @@ function buildSatellite() {
 // ============================================================================
 
 function setupControls() {
-    // Create a minimal orbit control simulation
-    // Note: Using basic mouse events for smooth, performant camera control
-    
     let isDragging = false;
     let previousMousePosition = { x: 0, y: 0 };
     
@@ -599,7 +598,67 @@ function setupControls() {
 }
 
 // ============================================================================
-// 10. GUI SETUP (lil-gui)
+// 10. TWEEN.JS ANIMATION FUNCTIONS
+// ============================================================================
+
+function deployPanelsSmooth() {
+    // Stop any existing panel tween
+    SceneState.activeTweens.forEach(tween => tween.stop());
+    SceneState.activeTweens = [];
+    
+    const panelTween = new TWEEN.Tween(SceneState.ui)
+        .to({ panelDeployment: 180 }, 3000)  // 3 seconds
+        .easing(TWEEN.Easing.Elastic.Out)    // Cinematic easing
+        .onUpdate(() => {
+            updateSolarPanelDeployment(SceneState.ui.panelDeployment);
+        })
+        .start();
+    
+    SceneState.activeTweens.push(panelTween);
+}
+
+function retractPanelsSmooth() {
+    // Stop any existing panel tween
+    SceneState.activeTweens.forEach(tween => tween.stop());
+    SceneState.activeTweens = [];
+    
+    const panelTween = new TWEEN.Tween(SceneState.ui)
+        .to({ panelDeployment: 0 }, 2500)    // 2.5 seconds
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .onUpdate(() => {
+            updateSolarPanelDeployment(SceneState.ui.panelDeployment);
+        })
+        .start();
+    
+    SceneState.activeTweens.push(panelTween);
+}
+
+function rotateArmJoint1Smooth(targetAngle = Math.PI / 4) {
+    const tween = new TWEEN.Tween(SceneState.ui)
+        .to({ armJoint1Angle: targetAngle }, 2000)
+        .easing(TWEEN.Easing.Cubic.InOut)
+        .onUpdate(() => {
+            SceneState.armJoint1.rotation.x = SceneState.ui.armJoint1Angle;
+        })
+        .start();
+    
+    SceneState.activeTweens.push(tween);
+}
+
+function rotateArmJoint2Smooth(targetAngle = Math.PI / 6) {
+    const tween = new TWEEN.Tween(SceneState.ui)
+        .to({ armJoint2Angle: targetAngle }, 2000)
+        .easing(TWEEN.Easing.Cubic.InOut)
+        .onUpdate(() => {
+            SceneState.armJoint2.rotation.z = SceneState.ui.armJoint2Angle;
+        })
+        .start();
+    
+    SceneState.activeTweens.push(tween);
+}
+
+// ============================================================================
+// 11. GUI SETUP (lil-gui)
 // ============================================================================
 
 function setupGUI() {
@@ -649,15 +708,24 @@ function setupGUI() {
     // ============ SATELLITE CONTROL FOLDER ============
     const satelliteFolder = gui.addFolder('Satellite Control');
     
-    satelliteFolder.add(SceneState.ui, 'panelDeployment', 0, 180, 1).name('Panel Deployment').onChange((value) => {
+    // Smooth deployment buttons
+    satelliteFolder.add({ deployPanels: deployPanelsSmooth }, 'deployPanels').name('Deploy Panels (Smooth)');
+    satelliteFolder.add({ retractPanels: retractPanelsSmooth }, 'retractPanels').name('Retract Panels (Smooth)');
+    
+    // Smooth arm rotation buttons
+    satelliteFolder.add({ rotateArm1: rotateArmJoint1Smooth }, 'rotateArm1').name('Rotate Arm Joint 1');
+    satelliteFolder.add({ rotateArm2: rotateArmJoint2Smooth }, 'rotateArm2').name('Rotate Arm Joint 2');
+    
+    // Manual sliders
+    satelliteFolder.add(SceneState.ui, 'panelDeployment', 0, 180, 1).name('Manual Panel Deploy').onChange((value) => {
         updateSolarPanelDeployment(value);
     });
     
-    satelliteFolder.add(SceneState.ui, 'armJoint1Angle', -Math.PI, Math.PI, 0.05).name('Arm Joint 1').onChange((value) => {
+    satelliteFolder.add(SceneState.ui, 'armJoint1Angle', -Math.PI, Math.PI, 0.05).name('Arm Joint 1 Manual').onChange((value) => {
         SceneState.armJoint1.rotation.x = value;
     });
     
-    satelliteFolder.add(SceneState.ui, 'armJoint2Angle', -Math.PI, Math.PI, 0.05).name('Arm Joint 2').onChange((value) => {
+    satelliteFolder.add(SceneState.ui, 'armJoint2Angle', -Math.PI, Math.PI, 0.05).name('Arm Joint 2 Manual').onChange((value) => {
         SceneState.armJoint2.rotation.z = value;
     });
     
@@ -703,11 +771,11 @@ function setupGUI() {
     
     visibilityFolder.open();
     
-    console.log('✓ GUI initialized');
+    console.log('✓ GUI initialized with Tween.js smooth animations');
 }
 
 // ============================================================================
-// 11. ANIMATION & UPDATE FUNCTIONS
+// 12. ANIMATION & UPDATE FUNCTIONS
 // ============================================================================
 
 function updateOrbitalMechanics(deltaTime) {
@@ -737,7 +805,7 @@ function updateSolarPanelDeployment(angle) {
 }
 
 function updateSatelliteOrbitalPosition(deltaTime) {
-    // Optional: Make satellite orbit around planet
+    // Make satellite orbit around planet
     const angle = SceneState.elapsedTime * Config.satelliteOrbitSpeed;
     SceneState.satelliteGroup.position.x = Math.cos(angle) * Config.satelliteDistance;
     SceneState.satelliteGroup.position.z = Math.sin(angle) * Config.satelliteDistance;
@@ -771,7 +839,7 @@ function animate() {
     // Update camera
     updateCameraPosition();
     
-    // Update Tween.js animations
+    // Update Tween.js animations (CRITICAL for smooth transitions)
     TWEEN.update();
     
     // Render scene
@@ -780,7 +848,7 @@ function animate() {
 }
 
 // ============================================================================
-// 12. EVENT HANDLERS
+// 13. EVENT HANDLERS
 // ============================================================================
 
 function onWindowResize() {
@@ -803,7 +871,7 @@ function onWindowResize() {
 window.addEventListener('resize', onWindowResize);
 
 // ============================================================================
-// 13. INITIALIZATION ENTRY POINT
+// 14. INITIALIZATION ENTRY POINT
 // ============================================================================
 
 if (document.readyState === 'loading') {
