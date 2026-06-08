@@ -189,7 +189,7 @@ The project uses procedurally-generated textures and materials. For enhanced rea
 ## Browser Compatibility
 
 | Browser | Support |
-|---------|---------|
+|---------|----------|
 | Chrome  | ✅ Full support |
 | Firefox | ✅ Full support |
 | Safari  | ✅ Full support (14+) |
